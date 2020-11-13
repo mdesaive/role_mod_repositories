@@ -1,0 +1,63 @@
+- block:
+    - name: Prepare list of yum repo keys from url.
+      set_fact:
+        role_mod_repositories_yum_repo_keyfile_urls: "{{ role_mod_repositories_yum_repo_keyfile_urls | default([]) + [item.gpgkey] }}"
+      when:
+        - item.gpgkey is defined
+        - item.gpgkey is regex("http://.*") or item.gpgkey is regex("https://.*")
+      with_items: '{{ role_mod_repositories_yum_repos }}'
+
+    - block:
+        - debug:
+            msg: role_mod_repositories_yum_repo_keyfile_urls {{ role_mod_repositories_yum_repo_keyfile_urls }}
+        - name: Add keys for yum repositories.
+          rpm_key:
+            key: "{{ item }}"
+            state: present
+          loop: '{{ role_mod_repositories_yum_repo_keyfile_urls }}'
+      when: role_mod_repositories_yum_repo_keyfile_urls is defined
+
+    - block:
+        - debug:
+            msg: role_mod_repositories_keyfile_contents {{ role_mod_repositories_keyfile_contents }}
+        - name: Copy gpg keys to destination filesystem.
+          copy:
+            content: '{{ item.gpgcontent }}'
+            dest: '{{ item.gpgfile }}'
+          with_items: '{{ role_mod_repositories_keyfile_contents }}'
+        - name: Add keys for yum repositories.
+          rpm_key:
+            key: "{{ item.gpgfile }}"
+            state: present
+          with_items: '{{ role_mod_repositories_keyfile_contents }}'
+      when: role_mod_repositories_keyfile_contents is defined
+
+    - name: Add repositories
+      yum_repository:
+        name: '{{ item.name }}'
+        description: '{{item.description}}'
+        file: '{{item.file}}'
+        baseurl: '{{item.baseurl}}'
+        gpgcheck: '{{item.gpgcheck}}'
+        gpgkey: '{{ item.gpgkey | default(omit) }}'
+        enabled: '{{item.enabled}}'
+      with_items: '{{ role_mod_repositories_yum_repos }}'
+  when: ansible_os_family == "RedHat"
+  no_log: true
+
+- block:
+    - name: Add keys for Debian repositories
+      apt_key:
+        data: '{{ item.data }}'
+        state: present
+      with_items: '{{ role_mod_repositories_apt_keyfile_contents }}'
+
+    - name: Add repositories for Debian
+      apt_repository:
+        repo: '{{ item.repo }}'
+        state: present
+        filename: '{{ item.filename }}'
+        update_cache: yes
+      with_items: '{{ role_mod_repositories_apt_repos }}'
+  when: ansible_os_family == "Debian"
+  no_log: true

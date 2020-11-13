@@ -1,0 +1,4 @@
+- name: Cleanup temporary variables
+  set_fact:
+    '{{ item }}': ''
+  loop: '{{ lookup("varnames", role_name).split(",") }}'

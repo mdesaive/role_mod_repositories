@@ -1,0 +1,25 @@
+---
+# tasks file for role_mod_repositories
+- name: Include os independent variables.
+  include_vars: "vars/main.yml"
+
+- name: Initial set of variables
+  debug:
+    msg: '{{ lookup("vars", item) }}'
+  loop: '{{ lookup("varnames", role_name).split(",") }}'
+
+- name: Display all variables/facts known for a host
+  debug:
+    var: hostvars[inventory_hostname]
+  tags: [ never, debug ]
+
+- name: Configure role_mod_repositories
+  include: 02-configure.yml
+
+- name: Unset all role variables
+  include: 81-cleanup-vars.yml
+
+- name: Final set of variables
+  debug:
+    msg: '{{ lookup("vars", item) }}'
+  loop: '{{ lookup("varnames", role_name).split(",") }}'
